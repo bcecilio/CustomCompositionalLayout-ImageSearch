@@ -35,8 +35,10 @@ class PhotoSearchController: UIViewController {
         // subscribe to the searchText
         $searchText
             .debounce(for: .seconds(1.0), scheduler: RunLoop.main)
+            .removeDuplicates()
             .sink { (text) in
                 print(text)
+                // where we call the API
         }
     .store(in: &subscriptions)
     }
