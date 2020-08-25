@@ -8,6 +8,7 @@
 
 import UIKit
 import Combine
+import Kingfisher
 
 class PhotoSearchController: UIViewController {
     
@@ -23,7 +24,7 @@ class PhotoSearchController: UIViewController {
     @Published private var searchText = ""
     private var subscriptions: Set<AnyCancellable> = []
     
-    typealias DataSource = UICollectionViewDiffableDataSource<SectionKind,Int>
+    typealias DataSource = UICollectionViewDiffableDataSource<SectionKind,Photo>
     var dataSource: DataSource!
 
     override func viewDidLoad() {
@@ -37,8 +38,26 @@ class PhotoSearchController: UIViewController {
             .debounce(for: .seconds(1.0), scheduler: RunLoop.main)
             .removeDuplicates()
             .sink { (text) in
-                print(text)
-                // where we call the API
+                self.searchPhotos(for: text)
+        }
+    .store(in: &subscriptions)
+    }
+    
+    private func updateSnapshot(with photos: [Photo]) {
+        var snapshot = dataSource.snapshot()
+        snapshot.deleteAllItems()
+        snapshot.appendSections([.main])
+        snapshot.appendItems(photos)
+        dataSource.apply(snapshot, animatingDifferences: false)
+    }
+    
+    private func searchPhotos(for query: String) {
+        // searchPhotos is a 'publisher'
+        APIClient().searchPhotos(for: query)
+            .sink(receiveCompletion: { (completion) in
+                print(completion)
+            }) { [weak self] (photos) in
+                self?.updateSnapshot(with: photos)
         }
     .store(in: &subscriptions)
     }
@@ -82,16 +101,17 @@ class PhotoSearchController: UIViewController {
     }
     
     private func configureDataSource() {
-        dataSource = DataSource(collectionView: collectionView, cellProvider: { (collectionView, indexPath, item) -> UICollectionViewCell? in
+        dataSource = DataSource(collectionView: collectionView, cellProvider: { (collectionView, indexPath, photo) -> UICollectionViewCell? in
             guard let cell = collectionView.dequeueReusableCell(withReuseIdentifier: ImageCell.reuseIdentifier, for: indexPath) as? ImageCell else {
                 fatalError("could not dequeue an ImageCell")
             }
+            cell.imageView.kf.setImage(with: URL(string: photo.webformatURL))
+            cell.imageView.contentMode = .scaleAspectFill
             return cell
         })
         // setup initial snapshot
         var snapshot = dataSource.snapshot()
         snapshot.appendSections([.main])
-        snapshot.appendItems(Array(1...100))
         dataSource.apply(snapshot, animatingDifferences: false)
     }
 }
