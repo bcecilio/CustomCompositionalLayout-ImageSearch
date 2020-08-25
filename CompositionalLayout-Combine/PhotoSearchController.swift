@@ -17,6 +17,11 @@ class PhotoSearchController: UIViewController {
     
     private var collectionView: UICollectionView!
     private var searchController: UISearchController!
+    // delcare search text property that will be a 'publisher'  that listens to changes in the search bar controller
+    // in order to make any property a 'publisher' you need to append the '@Published'
+    // to subscribe to the search text's publisher, a $ needs to be prefixed to searchText => $earchText
+    @Published private var searchText = ""
+    private var subscriptions: Set<AnyCancellable> = []
     
     typealias DataSource = UICollectionViewDiffableDataSource<SectionKind,Int>
     var dataSource: DataSource!
@@ -27,6 +32,13 @@ class PhotoSearchController: UIViewController {
         configureSearchController()
         configureCollectionView()
         configureDataSource()
+        // subscribe to the searchText
+        $searchText
+            .debounce(for: .seconds(1.0), scheduler: RunLoop.main)
+            .sink { (text) in
+                print(text)
+        }
+    .store(in: &subscriptions)
     }
     
     private func configureSearchController() {
@@ -84,6 +96,10 @@ class PhotoSearchController: UIViewController {
 
 extension PhotoSearchController: UISearchResultsUpdating {
     func updateSearchResults(for searchController: UISearchController) {
-        print(searchController.searchBar.text ?? "")
+        guard let text = searchController.searchBar.text, !text.isEmpty else {
+            return
+        }
+        searchText = text
+        // upon assigning a new value to the searchText
     }
 }
